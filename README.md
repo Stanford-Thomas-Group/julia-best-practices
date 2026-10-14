@@ -69,6 +69,7 @@ Both packages do this via `LocalPreferences.jl` and have a convenient interface.
 
 ### MPI.jl
 
+- These instructions largely follow https://juliaparallel.org/MPI.jl/stable/configuration/
 - Step 1: load a Sherlock mpi module. 
     - At the time of writing I recommend `module load openmpi/5.0.5` which is the latest and has cuda support.
 - Step 2: add the `MPIPreferences.jl` package to our project.
@@ -162,3 +163,125 @@ Both packages do this via `LocalPreferences.jl` and have a convenient interface.
             MPI launcher path: /share/software/user/open/openmpi/5.0.5/bin/mpiexec
         ```
     - The version info should reflect the system MPI.
+
+### CUDA.jl
+
+- These instructions are based on https://cuda.juliagpu.org/stable/installation/overview/
+- `CUDA.jl` is slightly different in that we don't need a special package just to write the `LocalPreferences.toml`.
+- Step 1: We need the system cuda. Note that you don't need to be on a GPU node at this point.
+    ```bash
+    $ module load cuda/12.6.1
+    ```
+    Note that `cuda/12.6.1` is the module loaded by `openmpi/5.0.5`. For example,
+    ```bash
+    $ module purge
+    $ module load openmpi/5.0.5
+    $ module list
+    ```
+    ```plain
+    Currently Loaded Modules:
+        1) devel (S)   2) math (S)   3) gcc/12.4.0   4) cuda/12.6.1 (g)   5) ucx/1.17.0 (g)   6) nccl/2.23.4 (g)   7) ucc/1.3.0 (g)   8) openmpi/5.0.5 (g,m)
+
+        Where:
+            S:  Module is Sticky, requires --force to unload or purge
+            g:  GPU support
+            m:  MPI support
+   ```
+   You can use these together for distributed GPU work or CUDA by itself for a single GPU.
+- Step 2: Add the `CUDA.jl` package to your project
+    ```bash
+    $ julia --project
+    ```
+    ```julia
+    julia> ]
+
+    (directory) pkg> add CUDA
+    ```
+- Step 3: Set the runtime version to the system cuda.
+    ```julia 
+    (directory) pkg> <backspace>
+
+    julia> using CUDA
+
+    julia> CUDA.set_runtime_version!(v"12.6.1", local_toolkit=true)
+    ```
+    The v-sting syntax `v"12.6.1"` creates a `VersionNumber` object. This needs to match the CUDA version you have loaded.
+- Step 4: Check the `LocalPreferences.toml` and `Project.toml` files.
+    ```bash
+    $ cat LocalPreferences.toml
+    ```
+    ```plain
+    [CUDA_Compiler_jll]
+    local = "true"
+    version = "12.6"
+
+    [CUDA_Runtime_jll]
+    local = "true"
+    version = "12.6"
+    ```
+    You should see these two entries in addition to any other entries for other packages (e.g. MPIPreferences).
+    ```bash
+    $ cat Project.toml
+    ```
+    ```plain
+    [deps]
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
+    [extras]
+    CUDA_Compiler_jll = "d1e2174e-dfdc-576e-b43e-73b79eb1aca8"
+    CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
+    ```
+    The key here is the last line `CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"` which is a dummy package that tells Julia to use the local cuda runtime.
+- Step 5: Request a GPU node and check everything is working. Here using the `dev` partition GPUs is a good option.
+    ```bash
+    $ sdev -g 1
+    ```
+    Ensure cuda is loaded and then run Julia
+    ```bash
+    $ module load cuda/12.6.1
+    $ julia --project
+    ```
+    ```julia
+    julia> using CUDA
+    julia> CUDA.versioninfo()
+    ```
+    ```plain
+    CUDA toolchain:
+    - runtime 12.6.0, local installation
+    - driver 550.163.1 for CUDA 12.4
+    - compiler 12.6.68, local installation
+
+    CUDA libraries:
+    - cuBLAS: 12.6.1
+    - cuSPARSE: 12.5.3
+    - cuSOLVER: 11.6.4
+    - cuFFT: 11.2.6
+    - cuRAND: 10.3.7
+    - CUPTI: 2024.3.1 (API 12.6.0)
+    - NVML: 12.0.0+550.163.1
+
+    Julia packages:
+    - CUDACore: 6.4.2
+    - GPUArrays: 11.5.16
+    - GPUCompiler: 2.14.1
+    - KernelAbstractions: 0.9.45
+    - CUDA_Driver_jll: 13.3.5+0
+    - CUDA_Compiler_jll: 0.6.3+2
+    - CUDA_Runtime_jll: 0.25.0+3
+    - CUDA_Runtime_Discovery: 2.1.1
+    - NVPTX_LLVM_Backend_jll: 23.1.2+1
+
+    Toolchain:
+    - Julia: 1.12.6
+    - LLVM: 18.1.7
+
+    Preferences:
+    - CUDA_Runtime_jll.version: 12.6
+    - CUDA_Runtime_jll.local: true
+    - CUDA_Compiler_jll.version: 12.6
+    - CUDA_Compiler_jll.local: true
+
+    1 device:
+    0: NVIDIA A30 MIG 1g.6gb (sm_80, 5.798 GiB / 5.812 GiB available)
+        compiles to sm_80 / PTX 8.5
+    ```
