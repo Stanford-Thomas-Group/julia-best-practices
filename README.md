@@ -28,6 +28,38 @@ Best practices for Julia, particularly when working on Stanford's _Sherlock_ clu
     ```
 
 ## Projects
+- By default Julia will run in a base environment for that version.
+    - For example, if I run 
+        ```bash
+        $ julia
+        ```
+        This open the Julia **REPL**. If I switch to **Package Mode** with `]` then I see
+        ```julia
+        (@v1.12) pkg> 
+        ```
+- We want to keep the base environments clean.
+- All work should be done within a **project**.
+- There are two ways to activate a new project.
+    - If you are already in **Package Mode** you can use the `activate` command
+        ```julia
+        (@v1.12) pkg> activate foo
+        ```
+        ```plain
+        Activating new project at `~/foo`
+        ```
+    - From the command line specify the new project directory explicitly.
+        ```bash
+        $ julia --project="foo"
+        ```
+- Once you have a project set up (i.e. there is a `Project.toml` file in the top-level directory of the project) you can run
+    ```bash
+    $ julia --project
+    ```
+    and Julia will find the `Project.toml` file (ascending up the directory tree if you run a subdirectory of the project).
+- **Make lots of projects!**
+    - The package cache in the Julia depot is your friend.
+    - If you start something new, make a new project!
+
 
 ## System binaries
 
@@ -46,7 +78,7 @@ Both packages do this via `LocalPreferences.jl` and have a convenient interface.
         ```
     - If this is a clean project with no `Project.toml` file you will need to run 
         ```bash
-        julia --project="."
+        $ julia --project="."
         ```
     - Enter **Package Mode** by hitting `]`.
     - Add the `MPIPreferences` package with `add MPIPreferences`.
